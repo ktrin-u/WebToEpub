@@ -4,6 +4,7 @@ parserFactory.register("allnovel.org", () => new NovelfullParser());
 parserFactory.register("allnovelbin.net", () => new NovelfullParser());
 parserFactory.register("allnovelfull.app", () => new NovelfullParser());
 parserFactory.register("allnovelfull.com", () => new NovelfullParser());
+parserFactory.register("novgo.net", () => new NovelfullParser());
 //dead url
 parserFactory.registerDeadSite("allnovelfull.org", () => new NovelfullParser());
 parserFactory.register("allnovelfull.net", () => new NovelfullParser());
@@ -38,7 +39,6 @@ parserFactory.register("novelnext.com", () => new NovelfullParser());
 parserFactory.register("novelnext.dramanovels.io", () => new NovelfullParser());
 parserFactory.register("novelnext.net", () => new NovelfullParser());
 parserFactory.register("novelnextz.com", () => new NovelfullParser());
-parserFactory.register("novelping.com", () => new NovelpingParser());
 //dead url
 parserFactory.registerDeadSite("noveltop1.org", () => new NovelfullParser());
 parserFactory.register("noveltrust.net", () => new NovelfullParser());
@@ -175,7 +175,7 @@ class NovelfullParser extends Parser {
     }
 
     findWatermark(dom) {
-        const searchToken = "original11Content.replace(\"";
+        const searchToken = 'original11Content.replace("';
         const script = [...dom.querySelectorAll("script")]
             .filter((s) => s.innerHTML.includes(searchToken))
             .map((s) => s.innerHTML)[0];
@@ -183,7 +183,7 @@ class NovelfullParser extends Parser {
             return null;
         }
         const line = script.substring(script.indexOf(searchToken) + searchToken.length);
-        return line.substring(0, line.indexOf("\""));
+        return line.substring(0, line.indexOf('"'));
     }
 
     makeSpanWithWatermark(dom, watermark) {
@@ -259,7 +259,9 @@ class NovelbinParser extends NovelfullParser {
         let url = new URL(dom.baseURI);
         let slug = url.pathname.split("/").filter((a) => a != "");
         slug = slug[slug.length - 1];
-        let tocHtml = (await HttpClient.wrapFetch("https://novelbin.com/ajax/chapter-archive?novelId=" + slug)).responseXML;
+        let tocHtml = (
+            await HttpClient.wrapFetch("https://novelbin.com/ajax/chapter-archive?novelId=" + slug)
+        ).responseXML;
         let chapters = this.extractPartialChapterList(tocHtml);
         return chapters;
     }
@@ -280,45 +282,6 @@ class NovelbinParser extends NovelfullParser {
     }
 }
 
-// novelbin.com -> novelarrow.com -> novelping.com, which is back on Novelbin's layout
-// See: https://github.com/dteviot/WebToEpub/issues/3012
-class NovelpingParser extends NovelbinParser {
-    constructor() {
-        super();
-    }
-
-    async getChapterUrls(dom) {
-        let tocUrl = new URL("/ajax/chapter-archive", dom.baseURI);
-        tocUrl.searchParams.set("novelId", NovelpingParser.novelSlug(dom.baseURI));
-        let tocHtml = (await HttpClient.wrapFetch(tocUrl.href)).responseXML;
-        return this.extractPartialChapterList(tocHtml);
-    }
-
-    // link text also holds the comment count, so use the title attribute
-    extractPartialChapterList(dom) {
-        return [...dom.querySelector("template").content.querySelectorAll("li a")]
-            .map(link => ({
-                sourceUrl: link.href,
-                title: link.title,
-                newArc: null
-            }));
-    }
-
-    // ToC is /novel/<slug> or /book/<slug>, chapters are /book/<slug>/<chapter>
-    static novelSlug(url) {
-        return new URL(url).pathname.split("/").filter(s => s != "")[1];
-    }
-
-    extractPublisher() {
-        return "NovelPing";
-    }
-
-    removeUnwantedElementsFromContentElement(element) {
-        util.removeChildElementsMatchingSelector(element, ".js-ad-slot");
-        super.removeUnwantedElementsFromContentElement(element);
-    }
-}
-
 class NovelfullNetParser extends NovelfullParser {
     getUrlsOfTocPages(dom) {
         let toc_pages = dom.querySelector("select#indexselect");
@@ -330,7 +293,7 @@ class NovelfullNetParser extends NovelfullParser {
 
         for (let toc_page of toc_pages) {
             if (toc_page.selected) {
-                continue;
+                continue
             }
             urls.push(`${base_url}${toc_page.getAttribute("data-url")}`);
         }
@@ -367,21 +330,21 @@ class NovelfullNetParser extends NovelfullParser {
     }
 
     extractDescription(dom) {
-        let info_div = dom.querySelector("div#novel-summary-inner.inner");
+        let info_div = dom.querySelector("div#novel-summary-inner.inner")
         let text = [...info_div.querySelectorAll("p")]
-            .map((paragraph) => paragraph.textContent.trim())
-            .join("\n\n");
+            .map(paragraph => paragraph.textContent.trim())
+            .join('\n\n');
 
-        return text;
+        return text
     }
 
     // extractSubject -> for tags metadata
     extractSubject(dom) {
-        let [genre_div] = [...dom.querySelectorAll("div.item")].filter(
-            (u) => u.querySelector("span")?.getAttribute("title") === "Genre",
-        );
+        let [genre_div] = [...dom.querySelectorAll("div.item")]
+            .filter((u) => u.querySelector("span")?.getAttribute("title") === "Genre")
 
-        let tags = [...genre_div.querySelectorAll("div.right a")].map((u) => u.textContent);
-        return tags.join(", ");
+        let tags = [...genre_div.querySelectorAll("div.right a")]
+            .map((u) => u.textContent);
+        return tags.join(", ")
     }
 }
